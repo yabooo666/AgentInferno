@@ -48,7 +48,11 @@ func NewClient(cfg *config.Config) *Client {
 					MinVersion: tls.VersionTLS12,
 				},
 				MaxIdleConns:          10,
-				IdleConnTimeout:       90 * time.Second,
+				// Node.js Express defaults to a 5-second Keep-Alive timeout.
+				// If we set IdleConnTimeout to >= 5s and heartbeat is 5s, we hit a race condition
+				// where the server closes the connection exactly as we try to reuse it, causing an EOF.
+				// Setting this to 3s forces the Go client to safely close the connection first.
+				IdleConnTimeout:       3 * time.Second,
 				TLSHandshakeTimeout:   10 * time.Second,
 				ExpectContinueTimeout: 1 * time.Second,
 			},

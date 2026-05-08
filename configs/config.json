@@ -1,7 +1,0 @@
-{
-  "backend_url": "http://localhost:3000",
-  "agent_token": "TEST_TOKEN_123",
-  "hmac_key": "dev-hmac-secret-replace-in-production",
-  "heartbeat_interval": 5,
-  "dev_mode": true
-}

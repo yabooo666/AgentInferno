@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentInferno Control Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --card-bg: #141417;
+            --accent: #ff4d00;
+            --text: #e0e0e6;
+            --text-dim: #888891;
+            --success: #10b981;
+            --danger: #ef4444;
+            --border: #27272a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            padding: 2rem;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1.5rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            color: var(--accent);
+            font-size: 1.25rem;
+        }
+
+        .status-badge {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            padding: 0.25rem 0.75rem;
+            border-radius: 99px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background: currentColor;
+            border-radius: 50%;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(255, 77, 0, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .hostname {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .ip-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 0.25rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .metric {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.75rem;
+            border-radius: 8px;
+        }
+
+        .metric-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .tag {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-dim);
+        }
+
+        .status-tag {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .status-online { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .status-offline { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+
+        .os-info {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #no-agents {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 5rem;
+            color: var(--text-dim);
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 0.5rem;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><span class="logo-icon">🔥</span> AGENT INFERNO</h1>
+            <div class="status-badge">
+                <div class="status-dot"></div>
+                SERVER LIVE
+            </div>
+        </header>
+
+        <div id="agents-grid" class="grid">
+            <div id="no-agents">
+                <p class="pulse">Waiting for agents to connect...</p>
+                <p style="font-size: 0.8rem; margin-top: 1rem;">Make sure your agent config points to this server.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchAgents() {
+            try {
+                const response = await fetch('/api/admin/agents');
+                const agents = await response.json();
+                renderAgents(agents);
+            } catch (err) {
+                console.error('Failed to fetch agents:', err);
+            }
+        }
+
+        function renderAgents(agents) {
+            const grid = document.getElementById('agents-grid');
+            if (agents.length === 0) {
+                grid.innerHTML = `<div id="no-agents">
+                    <p class="pulse">Waiting for agents to connect...</p>
+                </div>`;
+                return;
+            }
+
+            grid.innerHTML = agents.map(agent => `
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="hostname">${agent.hostname || 'Unknown'}</div>
+                            <div class="ip-label">${agent.public_ip || agent.local_ip}</div>
+                        </div>
+                        <div class="status-tag ${agent.status === 'online' ? 'status-online' : 'status-offline'}">
+                            ${agent.status.toUpperCase()}
+                        </div>
+                    </div>
+
+                    <div class="metrics-grid">
+                        <div class="metric">
+                            <div class="metric-label">CPU Usage</div>
+                            <div class="metric-value">${agent.cpu_usage.toFixed(1)}%</div>
+                            <div class="progress-bar"><div class="progress-fill" style="width: ${agent.cpu_usage}%"></div></div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">RAM Usage</div>
+                            <div class="metric-value">${agent.ram_usage.toFixed(1)}%</div>
+                            <div class="progress-bar"><div class="progress-fill" style="width: ${agent.ram_usage}%"></div></div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Disk Usage</div>
+                            <div class="metric-value">${agent.disk_usage.toFixed(1)}%</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Uptime</div>
+                            <div class="metric-value">${Math.floor(agent.uptime / 3600)}h ${Math.floor((agent.uptime % 3600) / 60)}m</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1rem; font-size: 0.75rem; background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span style="color: var(--text-dim);">CPU CORES</span>
+                            <span style="font-family: 'JetBrains Mono', monospace;">${agent.cpu_count || 'N/A'}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span style="color: var(--text-dim);">TOTAL RAM</span>
+                            <span style="font-family: 'JetBrains Mono', monospace;">${agent.total_ram ? (agent.total_ram / (1024**3)).toFixed(1) : '0'} GB</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--text-dim);">TOTAL DISK</span>
+                            <span style="font-family: 'JetBrains Mono', monospace;">${agent.total_disk ? (agent.total_disk / (1024**3)).toFixed(1) : '0'} GB</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <button onclick="requestReboot('${agent.machine_uuid}')" style="width: 100%; background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid var(--danger); padding: 0.5rem; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600; transition: all 0.2s;">
+                            REBOOT SYSTEM
+                        </button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 1rem;">
+                        <div style="background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);">
+                            <div class="metric-label">DISK READ</div>
+                            <div class="metric-value" style="font-size: 0.8rem;">${(agent.disk_io?.read_bytes / (1024*1024)).toFixed(1)} MB</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);">
+                            <div class="metric-label">DISK WRITE</div>
+                            <div class="metric-value" style="font-size: 0.8rem;">${(agent.disk_io?.write_bytes / (1024*1024)).toFixed(1)} MB</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <div class="metric-label">Docker Containers</div>
+                        <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                            ${agent.docker && agent.docker.length > 0 ? agent.docker.map(d => `
+                                <div style="font-size: 0.7rem; display: flex; justify-content: space-between; background: rgba(16, 185, 129, 0.05); padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.1);">
+                                    <span style="font-weight: 600;">${d.name}</span>
+                                    <span style="color: var(--success); font-size: 0.6rem; font-family: 'JetBrains Mono', monospace;">${d.status.toUpperCase()}</span>
+                                </div>
+                            `).join('') : '<div style="font-size: 0.7rem; color: var(--text-dim); text-align: center; padding: 0.5rem; border: 1px dashed var(--border); border-radius: 4px;">No containers detected</div>'}
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <div class="metric-label">SSH Login Audit (Recent)</div>
+                        <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                            ${agent.ssh_logins && agent.ssh_logins.length > 0 ? agent.ssh_logins.map(s => `
+                                <div style="font-size: 0.65rem; background: rgba(255,255,255,0.02); padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid var(--border);">
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span style="font-weight: 600; color: var(--accent);">${s.user}</span>
+                                        <span style="color: var(--text-dim); font-family: 'JetBrains Mono', monospace;">${s.ip}</span>
+                                    </div>
+                                    <div style="color: var(--text-dim); font-size: 0.6rem; margin-top: 0.25rem;">${s.date}</div>
+                                </div>
+                            `).join('') : '<div style="font-size: 0.7rem; color: var(--text-dim); text-align: center; padding: 0.5rem; border: 1px dashed var(--border); border-radius: 4px;">No recent logins</div>'}
+                        </div>
+                    </div>
+
+                    <div class="os-info">
+                        <span>${agent.os}</span>
+                        <span>v${agent.timestamp}</span>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <div class="metric-label">Network Interfaces</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+                            ${agent.interfaces ? agent.interfaces.map(iface => `
+                                <div style="background: rgba(255,255,255,0.02); padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border);">
+                                    <div style="font-weight: 600; font-size: 0.75rem; color: var(--accent);">${iface.name}</div>
+                                    <div style="font-size: 0.65rem; color: var(--text-dim); margin-top: 0.25rem;">
+                                        ↓ ${(iface.rx / (1024*1024)).toFixed(1)} MB
+                                        ↑ ${(iface.tx / (1024*1024)).toFixed(1)} MB
+                                    </div>
+                                </div>
+                            `).join('') : ''}
+                        </div>
+                    </div>
+
+                    ${agent.connections ? `
+                    <div style="margin-top: 1.5rem;">
+                        <div class="metric-label">Active Connections (TCP)</div>
+                        <div style="max-height: 150px; overflow-y: auto; margin-top: 0.5rem; border: 1px solid var(--border); border-radius: 8px;">
+                            <table style="width: 100%; font-size: 0.65rem; border-collapse: collapse;">
+                                <thead style="position: sticky; top: 0; background: var(--card-bg); box-shadow: 0 1px 0 var(--border);">
+                                    <tr style="text-align: left; color: var(--text-dim);">
+                                        <th style="padding: 0.5rem;">LOCAL</th>
+                                        <th style="padding: 0.5rem;">REMOTE</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${agent.connections.map(c => `
+                                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                            <td style="padding: 0.35rem 0.5rem; font-family: 'JetBrains Mono', monospace;">${c.local_addr}</td>
+                                            <td style="padding: 0.35rem 0.5rem; font-family: 'JetBrains Mono', monospace; color: var(--accent);">${c.remote_addr}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${agent.processes ? `
+                    <div style="margin-top: 1.5rem;">
+                        <div class="metric-label">Top Processes</div>
+                        <table style="width: 100%; font-size: 0.7rem; border-collapse: collapse; margin-top: 0.5rem;">
+                            <thead>
+                                <tr style="text-align: left; color: var(--text-dim); border-bottom: 1px solid var(--border);">
+                                    <th style="padding: 0.25rem 0;">NAME</th>
+                                    <th style="text-align: right;">CPU</th>
+                                    <th style="text-align: right;">MEM</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${agent.processes.map(p => `
+                                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.02);">
+                                        <td style="padding: 0.35rem 0; font-family: 'JetBrains Mono', monospace;">${p.name.substring(0, 15)}</td>
+                                        <td style="text-align: right; color: var(--accent);">${p.cpu.toFixed(1)}%</td>
+                                        <td style="text-align: right;">${p.memory.toFixed(1)}%</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function requestReboot(agentId) {
+            if (!confirm('Are you sure you want to REBOOT this system?')) return;
+            try {
+                const response = await fetch(`/api/admin/reboot/${agentId}`, { method: 'POST' });
+                const result = await response.json();
+                alert(result.message);
+            } catch (err) {
+                alert('Failed to send reboot request');
+            }
+        }
+
+        setInterval(fetchAgents, 2000);
+        fetchAgents();
+    </script>
+</body>
+</html>

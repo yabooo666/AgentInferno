@@ -2,6 +2,7 @@
 bin/
 agentinferno
 agentinferno.exe
+AgentInferno.exe~
 
 # Logs
 *.log
@@ -29,4 +30,5 @@ testbackend/node_modules/
 package-lock.json
 
 # Yabo
-testbackend/
+machine_id
+HOSTTHIS
