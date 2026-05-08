@@ -15,30 +15,39 @@ import (
 const idFilePath = "/var/lib/agentinferno/machine_id"
 
 func GetMachineID() (string, error) {
-	// 1. Try to read from our persistent storage
-	data, err := os.ReadFile(idFilePath)
-	if err == nil {
-		id := strings.TrimSpace(string(data))
-		if _, err := uuid.Parse(id); err == nil {
+	// List of potential paths to check (Production first, then Development fallback)
+	paths := []string{
+		idFilePath,
+		"machine_id",
+	}
+
+	// 1. Try to read from any existing persistent storage
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err == nil {
+			id := strings.TrimSpace(string(data))
+			if _, err := uuid.Parse(id); err == nil {
+				return id, nil
+			}
+		}
+	}
+
+	// 2. Generate new one if none found
+	id := uuid.New().String()
+
+	// 3. Try to persist to the primary production path
+	dir := filepath.Dir(idFilePath)
+	if err := os.MkdirAll(dir, 0755); err == nil {
+		err = os.WriteFile(idFilePath, []byte(id), 0644)
+		if err == nil {
 			return id, nil
 		}
 	}
 
-	// 2. Generate new one if missing or invalid
-	id := uuid.New().String()
-
-	// Ensure directory exists
-	dir := filepath.Dir(idFilePath)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		// If we can't create /var/lib/agentinferno, fallback to current dir for development
-		idFilePathDev := "machine_id"
-		_ = os.WriteFile(idFilePathDev, []byte(id), 0644)
-		return id, nil
-	}
-
-	err = os.WriteFile(idFilePath, []byte(id), 0644)
+	// 4. Final fallback to local directory (Development/Windows)
+	err := os.WriteFile("machine_id", []byte(id), 0644)
 	if err != nil {
-		return "", fmt.Errorf("failed to persist machine ID: %w", err)
+		return "", fmt.Errorf("failed to persist machine ID to local fallback: %w", err)
 	}
 
 	return id, nil

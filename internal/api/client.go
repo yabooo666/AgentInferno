@@ -37,25 +37,25 @@ func NewClient(cfg *config.Config) *Client {
 	}
 }
 
-func (c *Client) Register(ctx context.Context, payload interface{}) error {
+func (c *Client) Register(ctx context.Context, payload interface{}) (map[string]interface{}, error) {
 	return c.post(ctx, "/api/agent/register", payload)
 }
 
-func (c *Client) Heartbeat(ctx context.Context, payload interface{}) error {
+func (c *Client) Heartbeat(ctx context.Context, payload interface{}) (map[string]interface{}, error) {
 	return c.post(ctx, "/api/agent/heartbeat", payload)
 }
 
-func (c *Client) post(ctx context.Context, endpoint string, payload interface{}) error {
+func (c *Client) post(ctx context.Context, endpoint string, payload interface{}) (map[string]interface{}, error) {
 	url := fmt.Sprintf("%s%s", c.config.BackendURL, endpoint)
 	
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("failed to marshal payload: %w", err)
+		return nil, fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(body))
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -64,7 +64,7 @@ func (c *Client) post(ctx context.Context, endpoint string, payload interface{})
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return fmt.Errorf("request failed: %w", err)
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -75,8 +75,13 @@ func (c *Client) post(ctx context.Context, endpoint string, payload interface{})
 			zap.String("endpoint", endpoint),
 			zap.String("response", string(respBody)),
 		)
-		return fmt.Errorf("backend returned status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("backend returned status: %d", resp.StatusCode)
 	}
 
-	return nil
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, nil // Silently ignore if not JSON
+	}
+
+	return result, nil
 }

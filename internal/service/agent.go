@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"os/exec"
+	"runtime"
 	"time"
 
 	"github.com/yabooo666/AgentInferno/internal/api"
@@ -50,7 +52,7 @@ func (a *Agent) Run(ctx context.Context) error {
 			logger.Log.Info("stopping service loop")
 			return nil
 		case <-ticker.C:
-			a.sendHeartbeat(ctx)
+			a.processHeartbeat(ctx)
 		}
 	}
 }
@@ -59,7 +61,7 @@ func (a *Agent) mustRegister(ctx context.Context) {
 	backoff := 1 * time.Second
 	for {
 		stats, _ := metrics.Collect(ctx, a.machineID)
-		err := a.apiClient.Register(ctx, stats)
+		_, err := a.apiClient.Register(ctx, stats)
 		if err == nil {
 			logger.Log.Info("agent registered successfully")
 			return
@@ -79,15 +81,47 @@ func (a *Agent) mustRegister(ctx context.Context) {
 	}
 }
 
-func (a *Agent) sendHeartbeat(ctx context.Context) {
+func (a *Agent) processHeartbeat(ctx context.Context) {
 	stats, err := metrics.Collect(ctx, a.machineID)
 	if err != nil {
 		logger.Log.Error("failed to collect metrics", zap.Error(err))
 		return
 	}
 
-	err = a.apiClient.Heartbeat(ctx, stats)
+	resp, err := a.apiClient.Heartbeat(ctx, stats)
 	if err != nil {
 		logger.Log.Warn("heartbeat failed", zap.Error(err))
+		return
+	}
+
+	if action, ok := resp["action"].(string); ok {
+		a.handleAction(action)
+	}
+}
+
+func (a *Agent) handleAction(action string) {
+	switch action {
+	case "reboot":
+		logger.Log.Warn("received REBOOT command from backend")
+		a.executeReboot()
+	default:
+		logger.Log.Info("received unknown action", zap.String("action", action))
+	}
+}
+
+func (a *Agent) executeReboot() {
+	// Securely execute ONLY the reboot command
+	// For Linux: reboot
+	// For Windows (dev): shutdown /r /t 0
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("shutdown", "/r", "/t", "5") // 5 sec delay for safety
+	} else {
+		cmd = exec.Command("reboot")
+	}
+
+	logger.Log.Info("executing system reboot...")
+	if err := cmd.Run(); err != nil {
+		logger.Log.Error("reboot command failed", zap.Error(err))
 	}
 }
