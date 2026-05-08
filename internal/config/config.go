@@ -4,6 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
+)
+
+var (
+	// Build-time injected variables
+	BackendURL        string
+	AgentToken        string
+	HeartbeatInterval string // String because ldflags only supports strings
 )
 
 type Config struct {
@@ -13,35 +21,55 @@ type Config struct {
 }
 
 func Load(path string) (*Config, error) {
+	cfg := &Config{
+		BackendURL:        BackendURL,
+		AgentToken:        AgentToken,
+		HeartbeatInterval: 10,
+	}
+
+	// Parse heartbeat interval if injected
+	if HeartbeatInterval != "" {
+		if val, err := strconv.Atoi(HeartbeatInterval); err == nil {
+			cfg.HeartbeatInterval = val
+		}
+	}
+
+	// If hardcoded config is present, we can skip file loading if path is empty
+	if cfg.BackendURL != "" && cfg.AgentToken != "" && path == "" {
+		return cfg, nil
+	}
+
+	// Fallback to file loading if provided or if hardcoded is missing
 	if path == "" {
 		path = "/etc/agentinferno/config.json"
-		// Fallback for development if /etc doesn't exist or is not readable
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			path = "configs/config.json"
 		}
 	}
 
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open config file: %w", err)
-	}
-	defer file.Close()
-
-	var cfg Config
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&cfg); err != nil {
-		return nil, fmt.Errorf("failed to decode config: %w", err)
-	}
-
-	if cfg.BackendURL == "" {
-		return nil, fmt.Errorf("backend_url is required")
-	}
-	if cfg.AgentToken == "" {
-		return nil, fmt.Errorf("agent_token is required")
-	}
-	if cfg.HeartbeatInterval <= 0 {
-		cfg.HeartbeatInterval = 10
+	if _, err := os.Stat(path); err == nil {
+		file, err := os.Open(path)
+		if err == nil {
+			defer file.Close()
+			var fileCfg Config
+			if err := json.NewDecoder(file).Decode(&fileCfg); err == nil {
+				// File overrides build-time if both exist
+				if fileCfg.BackendURL != "" {
+					cfg.BackendURL = fileCfg.BackendURL
+				}
+				if fileCfg.AgentToken != "" {
+					cfg.AgentToken = fileCfg.AgentToken
+				}
+				if fileCfg.HeartbeatInterval > 0 {
+					cfg.HeartbeatInterval = fileCfg.HeartbeatInterval
+				}
+			}
+		}
 	}
 
-	return &cfg, nil
+	if cfg.BackendURL == "" || cfg.AgentToken == "" {
+		return nil, fmt.Errorf("backend_url and agent_token must be provided via build flags or config file")
+	}
+
+	return cfg, nil
 }

@@ -6,10 +6,20 @@ BUILD_DIR=bin
 
 all: build
 
+# Load .env file if it exists
+ifneq ("$(wildcard .env)","")
+    include .env
+    export
+endif
+
+# Injection targets
+PKG=github.com/yabooo666/AgentInferno/internal/config
+LDFLAGS=-X '$(PKG).BackendURL=$(BACKEND_URL)' -X '$(PKG).AgentToken=$(AGENT_TOKEN)' -X '$(PKG).HeartbeatInterval=$(HEARTBEAT_INTERVAL)'
+
 build:
-	@echo "Building AgentInferno..."
+	@echo "Building AgentInferno with embedded config..."
 	@mkdir -p $(BUILD_DIR)
-	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(BUILD_DIR)/$(BINARY_NAME) ./main.go
+	CGO_ENABLED=0 go build -ldflags="-s -w $(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) ./main.go
 
 clean:
 	@echo "Cleaning up..."

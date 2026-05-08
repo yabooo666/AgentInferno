@@ -12,7 +12,15 @@ import (
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
 	netutil "github.com/shirou/gopsutil/net"
+	"github.com/shirou/gopsutil/process"
 )
+
+type ProcessInfo struct {
+	PID    int32   `json:"pid"`
+	Name   string  `json:"name"`
+	CPU    float64 `json:"cpu"`
+	Memory float32 `json:"memory"`
+}
 
 type Stats struct {
 	Hostname     string  `json:"hostname"`
@@ -25,8 +33,9 @@ type Stats struct {
 	NetTX        uint64  `json:"net_tx"`
 	LocalIP      string  `json:"local_ip"`
 	PublicIP     string  `json:"public_ip"`
-	MachineUUID  string  `json:"machine_uuid"`
-	Timestamp    int64   `json:"timestamp"`
+	MachineUUID  string        `json:"machine_uuid"`
+	Processes    []ProcessInfo `json:"processes"`
+	Timestamp    int64         `json:"timestamp"`
 }
 
 func Collect(ctx context.Context, machineID string) (*Stats, error) {
@@ -59,10 +68,39 @@ func Collect(ctx context.Context, machineID string) (*Stats, error) {
 		LocalIP:     getPrimaryLocalIP(),
 		PublicIP:    getPublicIP(),
 		MachineUUID: machineID,
+		Processes:   getTopProcesses(),
 		Timestamp:   time.Now().Unix(),
 	}
 
 	return stats, nil
+}
+
+func getTopProcesses() []ProcessInfo {
+	procs, err := process.Processes()
+	if err != nil {
+		return nil
+	}
+
+	var infos []ProcessInfo
+	for _, p := range procs {
+		name, _ := p.Name()
+		cpu, _ := p.CPUPercent()
+		mem, _ := p.MemoryPercent()
+		
+		if cpu > 0.1 || mem > 1.0 { // Only collect active/heavy processes
+			infos = append(infos, ProcessInfo{
+				PID:    p.Pid,
+				Name:   name,
+				CPU:    cpu,
+				Memory: mem,
+			})
+		}
+		
+		if len(infos) > 10 { // Limit to top 10
+			break
+		}
+	}
+	return infos
 }
 
 func getPublicIP() string {
