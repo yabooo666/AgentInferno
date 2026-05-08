@@ -1,16 +1,21 @@
 [Unit]
 Description=AgentInferno Monitoring Agent
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/agentinferno -config /etc/agentinferno/config.json
+ExecStart=/usr/bin/agentinferno
 Restart=always
 RestartSec=10
 
+# Run as dedicated user (create with: useradd -r -s /bin/false agentinferno)
+User=agentinferno
+Group=agentinferno
+
 # Security Hardening
 NoNewPrivileges=true
-ProtectSystem=full
+ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
 ProtectControlGroups=true
@@ -19,10 +24,27 @@ ProtectKernelTunables=true
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 RestrictRealtime=true
 MemoryDenyWriteExecute=true
+RestrictNamespaces=true
+LockPersonality=true
+ProtectClock=true
+ProtectHostname=true
+
+# Allow writing to machine_id directory
+ReadWritePaths=/var/lib/agentinferno
+
+# Allow reading auth logs for SSH audit
+ReadOnlyPaths=/var/log/auth.log /var/log/secure
+
+# Allow Docker socket access (if Docker is installed)
+ReadOnlyPaths=/var/run/docker.sock
 
 # Resource limits
-MemoryLimit=128M
+MemoryMax=128M
 CPUQuota=10%
+
+# Reboot requires elevated privileges — allow via sudoers ONLY
+# Add to /etc/sudoers.d/agentinferno:
+#   agentinferno ALL=(root) NOPASSWD: /sbin/reboot
 
 [Install]
 WantedBy=multi-user.target

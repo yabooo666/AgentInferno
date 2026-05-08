@@ -1,78 +1,92 @@
 # AgentInferno 🔥
 
-AgentInferno is a production-grade, lightweight Linux monitoring agent written in Go. It is designed for high-security environments where minimal footprint and maximum reliability are required.
+A production-grade, zero-trust Linux monitoring agent written in Go.
 
-## Features
+## Security Architecture
 
-- **Lightweight**: Minimal CPU and RAM usage.
-- **Secure**: No inbound ports, outbound HTTPS only, TLS 1.2+ defaults.
-- **Resilient**: Exponential backoff on backend failure, graceful shutdown.
-- **Modern**: Structured JSON logging (Zap), systemd integration.
-- **No Dangerous Features**: ZERO remote-shell, ZERO arbitrary command execution.
+AgentInferno follows a **zero-trust model**:
 
-## Installation
+1. **HTTPS Only**: Agent refuses to start if `backend_url` is not `https://` (unless `dev_mode=true` for local testing).
+2. **HMAC-Signed Actions**: The backend must cryptographically sign all action commands (e.g., reboot) using HMAC-SHA256. The agent verifies the signature before executing anything.
+3. **Nonce Replay Protection**: Each action includes a unique nonce. The agent rejects any nonce it has seen before.
+4. **Action Whitelist**: Only explicitly whitelisted actions are accepted. Unknown action names are discarded.
+5. **No os/exec in Metrics**: Docker monitoring uses the Unix socket API directly. SSH audit reads `/var/log/auth.log` directly. Zero shell commands for data collection.
+6. **Minimal Exec**: The only `os/exec` call is a hardcoded `/sbin/reboot` — and only after passing HMAC + whitelist + nonce checks.
+7. **Dedicated User**: The systemd service runs as a restricted `agentinferno` user, not root.
+
+## Build
 
 ### Prerequisites
-- Go 1.21+ (for building)
-- Ubuntu 22.04+ / Debian-based system
+- Go 1.21+
+- A `.env` file with your configuration (see below)
 
-### Build
-Since the target is Linux, you can cross-compile from any platform:
-
-**On Linux/macOS:**
-```bash
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin/agentinferno ./cmd/agentinferno
+### Configuration (.env)
+```env
+BACKEND_URL=https://api.yourbackend.com
+AGENT_TOKEN=your-registration-token
+HMAC_KEY=your-64-char-random-secret
+HEARTBEAT_INTERVAL=10
+DEV_MODE=false
 ```
-(Or use `make build` if you have `make` installed)
+
+> **IMPORTANT**: The `.env` values are baked into the binary at compile time via `ldflags`. The binary does NOT need a config file at runtime.
+
+### Build Commands
 
 **On Windows (PowerShell):**
 ```powershell
 .\scripts\build.ps1
 ```
 
-The static binary will be available in `bin/agentinferno`.
-
-### Quick Setup (as Root)
+**On Linux/macOS:**
 ```bash
-# 1. Build and install binary and service
+make build
+```
+
+## Install on Ubuntu VPS
+
+```bash
+# 1. Build
+make build
+
+# 2. Install binary + create service user + register systemd
 sudo make install
 
-# 2. Configure the agent
-sudo nano /etc/agentinferno/config.json
+# 3. Allow reboot (optional)
+echo "agentinferno ALL=(root) NOPASSWD: /sbin/reboot" | sudo tee /etc/sudoers.d/agentinferno
 
-# 3. Start the service
-sudo systemctl enable agentinferno
-sudo systemctl start agentinferno
+# 4. Start
+sudo systemctl enable --now agentinferno
 ```
-
-## Configuration
-
-The agent loads configuration from `/etc/agentinferno/config.json`.
-
-```json
-{
-  "backend_url": "https://api.yourbackend.com",
-  "agent_token": "YOUR_SECRET_TOKEN",
-  "heartbeat_interval": 10
-}
-```
-
-## Security Philosophy
-
-1. **Outbound Only**: The agent never listens on any port. It only initiates connections to the backend.
-2. **Hardened Service**: The systemd service runs with restricted privileges (`NoNewPrivileges`, `ProtectSystem=full`).
-3. **No Execution**: The codebase contains no `os/exec` or similar calls that could be abused for remote command execution.
-4. **Data Privacy**: Only performance metrics are collected. No sensitive files, environment variables, or private keys are ever read.
 
 ## Collected Metrics
 
-- Hostname & OS Version
-- System Uptime
-- CPU Usage (%)
-- RAM Usage (%)
-- Disk Usage (%)
-- Network RX/TX Bytes
-- Machine UUID (Persistent)
+| Metric | Description |
+|--------|-------------|
+| CPU Usage | Current CPU utilization % |
+| CPU Cores | Total logical processors |
+| RAM Usage | Current memory utilization % |
+| Total RAM | Total system memory |
+| Disk Usage | Primary partition usage % |
+| Total Disk | Primary partition capacity |
+| Disk I/O | Read/Write bytes |
+| Network RX/TX | Total bytes received/sent |
+| Interfaces | Per-interface traffic breakdown |
+| Connections | Active TCP connections (ESTABLISHED) |
+| Docker | Container names, status, images |
+| SSH Logins | Last 5 accepted SSH sessions |
+| Processes | Top 10 resource-heavy processes |
+| Public IP | Cached, refreshed every 5 minutes |
+
+## What This Agent Does NOT Do
+
+- ❌ Execute arbitrary commands
+- ❌ Open any listening ports
+- ❌ Accept inbound connections
+- ❌ Read SSH keys, passwords, or environment secrets
+- ❌ Provide shell access of any kind
+- ❌ Auto-update itself
+- ❌ Load plugins or scripts
 
 ## License
 MIT
