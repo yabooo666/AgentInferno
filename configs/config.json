@@ -1,0 +1,5 @@
+{
+  "backend_url": "http://localhost:3000",
+  "agent_token": "TEST_TOKEN_123",
+  "heartbeat_interval": 5
+}

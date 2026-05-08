@@ -1,0 +1,28 @@
+[Unit]
+Description=AgentInferno Monitoring Agent
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/agentinferno -config /etc/agentinferno/config.json
+Restart=always
+RestartSec=10
+
+# Security Hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictRealtime=true
+MemoryDenyWriteExecute=true
+
+# Resource limits
+MemoryLimit=128M
+CPUQuota=10%
+
+[Install]
+WantedBy=multi-user.target

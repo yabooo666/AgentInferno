@@ -1,0 +1,32 @@
+# Binaries
+bin/
+agentinferno
+agentinferno.exe
+
+# Logs
+*.log
+logs/
+
+# Secrets & Configs
+configs/config.local.json
+.env
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/
+go.sum
+
+# Node.js
+node_modules/
+testbackend/node_modules/
+package-lock.json
+
+# Yabo
+testbackend/
